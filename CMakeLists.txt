@@ -5,6 +5,9 @@ set(SRC_DIR "src")
 set(SRC_FILES 
   "${SRC_DIR}/main.c"
   "${SRC_DIR}/oscillator.c"
+  "${SRC_DIR}/ui_manager.c"
+  "${SRC_DIR}/ui_widget.c"
+  "${SRC_DIR}/dynamic_array.c"
 )
 
 find_library(SOUNDIO

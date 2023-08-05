@@ -1,4 +1,5 @@
 #include "oscillator.h"
+#include "ui_manager.h"
 #include <math.h>
 #include <raylib.h>
 #include <soundio/soundio.h>
@@ -36,12 +37,13 @@ int main(int argc, char **argv) {
 
   fprintf(stderr, "Output device: %s\n", device->name);
 
-  Oscillator_t *oscillator = make_oscillator(RAND);
+  Oscillator_t *oscillator = make_oscillator(SIN);
 
   struct SoundIoOutStream *outstream = soundio_outstream_create(device);
   outstream->format = SoundIoFormatFloat32NE;
   outstream->userdata = oscillator;
   outstream->write_callback = oscillator_write_callback;
+  outstream->software_latency = 0.017;
 
   if ((err = soundio_outstream_open(outstream))) {
     fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
@@ -57,8 +59,24 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  for (;;)
-    soundio_wait_events(soundio);
+  InitWindow(800, 600, "synth");
+  UiManager_t *ui_manager = create_ui_manager();
+  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &oscillator->params.freq, 30.0, 20000.0, 100, 400, 200));
+  add_widget(ui_manager, create_widget(SLIDER, LINEAR, &oscillator->params.amplitude, 0.0, 1.0, 300, 400, 200));
+
+  char buf[1024] = {};
+  while (!WindowShouldClose()) {
+    BeginDrawing();
+    ClearBackground(BLACK);
+    update_ui(ui_manager);
+    draw_ui(ui_manager);
+    sprintf(buf, "%lf", oscillator->params.freq);
+    DrawText(buf, 400, 400, 20, WHITE);
+    EndDrawing();
+    soundio_flush_events(soundio);
+  }
+
+  CloseWindow();
 
   soundio_outstream_destroy(outstream);
   soundio_device_unref(device);
