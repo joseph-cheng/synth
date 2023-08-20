@@ -4,68 +4,6 @@
 #include <stdlib.h>
 
 static const double PI = 3.14159265358979;
-void oscillator_write_callback(struct SoundIoOutStream *out_stream,
-                               int frame_count_min, int frame_count_max) {
-  Oscillator_t *oscillator = (Oscillator_t *)out_stream->userdata;
-  const struct SoundIoChannelLayout *layout = &out_stream->layout;
-  float float_sample_rate = out_stream->sample_rate;
-  float seconds_per_frame = 1.0f / float_sample_rate;
-  struct SoundIoChannelArea *areas;
-  int frames_left = frame_count_max;
-  int err;
-
-  while (frames_left > 0) {
-    int frame_count = frames_left;
-
-    if ((err =
-             soundio_outstream_begin_write(out_stream, &areas, &frame_count))) {
-      fprintf(stderr, "%s\n", soundio_strerror(err));
-      exit(1);
-    }
-
-    if (!frame_count)
-      break;
-
-    float pitch = 440.0f;
-    float radians_per_second = pitch * 2.0f * PI;
-    for (int frame = 0; frame < frame_count; frame += 1) {
-      double seconds = oscillator->offset + frame * seconds_per_frame;
-      double sample = 0.0f;
-      if (oscillator->params.active) {
-        switch (oscillator->type) {
-        case SIN:
-          sample = sine_gen(oscillator, seconds);
-          break;
-
-        case SAW:
-          sample = saw_gen(oscillator, seconds);
-          break;
-
-        case SQUARE:
-          sample = square_gen(oscillator, seconds);
-          break;
-
-        case RAND:
-          sample = rand_gen(oscillator, seconds);
-        }
-      }
-      for (int channel = 0; channel < layout->channel_count; channel += 1) {
-        float *ptr =
-            (float *)(areas[channel].ptr + areas[channel].step * frame);
-        *ptr = sample;
-      }
-    }
-    oscillator->offset =
-        fmod(oscillator->offset + seconds_per_frame * frame_count, 1.0f);
-
-    if ((err = soundio_outstream_end_write(out_stream))) {
-      fprintf(stderr, "%s\n", soundio_strerror(err));
-      exit(1);
-    }
-
-    frames_left -= frame_count;
-  }
-}
 
 Oscillator_t *make_oscillator(OscType_e type) {
   Oscillator_t *oscillator = malloc(sizeof(Oscillator_t));
@@ -74,6 +12,8 @@ Oscillator_t *make_oscillator(OscType_e type) {
   oscillator->params.amplitude = 0.2;
   oscillator->params.active = 0;
   oscillator->offset = 0.0;
+  oscillator->prev_sample = 0.0f;
+  oscillator->prev_filtered_sample = 0.0f;
   return oscillator;
 }
 

@@ -8,6 +8,8 @@ set(SRC_FILES
   "${SRC_DIR}/ui_manager.c"
   "${SRC_DIR}/ui_widget.c"
   "${SRC_DIR}/dynamic_array.c"
+  "${SRC_DIR}/synth.c"
+  "${SRC_DIR}/filter.c"
 )
 
 find_library(SOUNDIO

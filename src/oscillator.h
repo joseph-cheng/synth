@@ -18,10 +18,9 @@ typedef struct Oscillator {
   OscType_e type;
   OscParams_t params;
   double offset;
+  float prev_sample;
+  float prev_filtered_sample;
 } Oscillator_t;
-
-void oscillator_write_callback(struct SoundIoOutStream *out_stream,
-                               int frame_count_min, int frame_count_max);
 
 Oscillator_t *make_oscillator(OscType_e type);
 void destroy_oscillator(Oscillator_t *oscillator);

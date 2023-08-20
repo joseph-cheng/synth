@@ -1,4 +1,6 @@
 #include "oscillator.h"
+#include "synth.h"
+#include "filter.h"
 #include "ui_manager.h"
 #include <math.h>
 #include <raylib.h>
@@ -37,12 +39,16 @@ int main(int argc, char **argv) {
 
   fprintf(stderr, "Output device: %s\n", device->name);
 
-  Oscillator_t *oscillator = make_oscillator(SQUARE);
+  Oscillator_t *oscillator = make_oscillator(SAW);
+  Filter_t *filter = create_filter(LOWPASS, 1000.0f);
+
+  Synth_t *synth = create_synth(oscillator);
+  add_filter_to_synth(synth, filter);
 
   struct SoundIoOutStream *outstream = soundio_outstream_create(device);
   outstream->format = SoundIoFormatFloat32NE;
-  outstream->userdata = oscillator;
-  outstream->write_callback = oscillator_write_callback;
+  outstream->userdata = synth;
+  outstream->write_callback = synth_write_callback;
   outstream->software_latency = 0.017;
 
   if ((err = soundio_outstream_open(outstream))) {
@@ -61,8 +67,10 @@ int main(int argc, char **argv) {
 
   InitWindow(800, 600, "synth");
   UiManager_t *ui_manager = create_ui_manager();
-  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &oscillator->params.freq, 30.0, 20000.0, 100, 400, 200));
-  add_widget(ui_manager, create_widget(SLIDER, LINEAR, &oscillator->params.amplitude, 0.0, 1.0, 300, 400, 200));
+  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &oscillator->params.freq, 30.0, 20000.0, 100, 400, 150));
+  add_widget(ui_manager, create_widget(SLIDER, LINEAR, &oscillator->params.amplitude, 0.0, 1.0, 300, 400, 150));
+  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &filter->cutoff_freq, 30.0, 20000.0, 300, 100, 150));
+
   add_widget(ui_manager, create_widget(BUTTON, LINEAR, &oscillator->params.active, 0.0, 1.0, 500, 400, 20));
 
   while (!WindowShouldClose()) {
