@@ -30,11 +30,15 @@ void update_ui(UiManager_t *ui_manager) {
   int mouse_y = GetMouseY();
 
   if (IsMouseButtonReleased(0)) {
-    ui_manager->dragged_widget = NULL;
+    if (ui_manager->dragged_widget)
+    {
+      widget_released(ui_manager->dragged_widget, mouse_x, mouse_y);
+      ui_manager->dragged_widget = NULL;
+    }
   }
 
   if (ui_manager->dragged_widget) {
-    update_widget(ui_manager->dragged_widget, ui_manager->last_mouse_x,
+    widget_dragged(ui_manager->dragged_widget, ui_manager->last_mouse_x,
                   ui_manager->last_mouse_y, mouse_x, mouse_y);
   }
 
@@ -42,6 +46,7 @@ void update_ui(UiManager_t *ui_manager) {
     for (int ii = 0; ii < ui_manager->widgets.num_elements; ii++) {
       if (point_inside_widget_clickbox(widgets[ii], mouse_x, mouse_y)) {
         ui_manager->dragged_widget = widgets[ii];
+        widget_clicked(ui_manager->dragged_widget, mouse_x, mouse_y);
       }
     }
   }

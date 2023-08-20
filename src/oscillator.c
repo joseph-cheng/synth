@@ -31,21 +31,23 @@ void oscillator_write_callback(struct SoundIoOutStream *out_stream,
     for (int frame = 0; frame < frame_count; frame += 1) {
       double seconds = oscillator->offset + frame * seconds_per_frame;
       double sample = 0.0f;
-      switch (oscillator->type) {
-      case SIN:
-        sample = sine_gen(oscillator, seconds);
-        break;
+      if (oscillator->params.active) {
+        switch (oscillator->type) {
+        case SIN:
+          sample = sine_gen(oscillator, seconds);
+          break;
 
-      case SAW:
-        sample = saw_gen(oscillator, seconds);
-        break;
+        case SAW:
+          sample = saw_gen(oscillator, seconds);
+          break;
 
-      case SQUARE:
-        sample = square_gen(oscillator, seconds);
-        break;
+        case SQUARE:
+          sample = square_gen(oscillator, seconds);
+          break;
 
-      case RAND:
-        sample = rand_gen(oscillator, seconds);
+        case RAND:
+          sample = rand_gen(oscillator, seconds);
+        }
       }
       for (int channel = 0; channel < layout->channel_count; channel += 1) {
         float *ptr =
@@ -70,6 +72,7 @@ Oscillator_t *make_oscillator(OscType_e type) {
   oscillator->type = type;
   oscillator->params.freq = 440.0;
   oscillator->params.amplitude = 0.2;
+  oscillator->params.active = 0;
   oscillator->offset = 0.0;
   return oscillator;
 }

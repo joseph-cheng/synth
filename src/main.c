@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 
   fprintf(stderr, "Output device: %s\n", device->name);
 
-  Oscillator_t *oscillator = make_oscillator(SIN);
+  Oscillator_t *oscillator = make_oscillator(SQUARE);
 
   struct SoundIoOutStream *outstream = soundio_outstream_create(device);
   outstream->format = SoundIoFormatFloat32NE;
@@ -63,15 +63,14 @@ int main(int argc, char **argv) {
   UiManager_t *ui_manager = create_ui_manager();
   add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &oscillator->params.freq, 30.0, 20000.0, 100, 400, 200));
   add_widget(ui_manager, create_widget(SLIDER, LINEAR, &oscillator->params.amplitude, 0.0, 1.0, 300, 400, 200));
+  add_widget(ui_manager, create_widget(BUTTON, LINEAR, &oscillator->params.active, 0.0, 1.0, 500, 400, 20));
 
-  char buf[1024] = {};
   while (!WindowShouldClose()) {
     BeginDrawing();
     ClearBackground(BLACK);
     update_ui(ui_manager);
     draw_ui(ui_manager);
-    sprintf(buf, "%lf", oscillator->params.freq);
-    DrawText(buf, 400, 400, 20, WHITE);
+
     EndDrawing();
     soundio_flush_events(soundio);
   }

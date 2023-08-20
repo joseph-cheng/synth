@@ -11,6 +11,7 @@ typedef enum OscType {
 typedef struct OscParams {
   double freq;
   double amplitude;
+  double active;
 } OscParams_t;
 
 typedef struct Oscillator {
