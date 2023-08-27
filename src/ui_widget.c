@@ -4,29 +4,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-UiWidget_t *create_widget(WidgetType_e type, WidgetScale_e scale, double *value,
-                          double min, double max, int x, int y, int size) {
+UiWidget_t *create_widget(WidgetType_e type, WidgetScale_e scale, int x, int y,
+                          int size, const char *name, WidgetCallback_t callback,
+                          void *udata) {
   UiWidget_t *widget = malloc(sizeof(UiWidget_t));
   widget->type = type;
   widget->scale = scale;
-
-  if (widget->type == BUTTON) {
-    if (*value != min && *value != max) {
-      *value = min;
-    }
-  }
-
-  widget->value = value;
-  widget->min = min;
-  widget->max = max;
+  widget->component_value = 0.0;
 
   widget->x = x;
   widget->y = y;
   widget->size = size;
   widget->dragged = false;
+  widget->name = name;
+  widget->callback = callback;
+  widget->udata = udata;
   return widget;
 }
 
+/*
 double get_value_percentage(UiWidget_t *widget) {
   switch (widget->scale) {
   case LINEAR: {
@@ -52,6 +48,7 @@ double percentage_to_value(UiWidget_t *widget, double percentage) {
   }
   }
 }
+*/
 
 void destroy_widget(UiWidget_t *widget) { free(widget); }
 
@@ -59,9 +56,9 @@ void draw_widget(UiWidget_t *widget, Color color) {
   switch (widget->type) {
   case SLIDER: {
 
-    double percentage = get_value_percentage(widget);
     int slider_y =
-        -(int)((percentage - 0.5) * (double)widget->size) + widget->y;
+        -(int)((widget->component_value - 0.5) * (double)widget->size) +
+        widget->y;
     int slider_x = widget->x;
 
     int slider_width = widget->size / 5;
@@ -76,19 +73,29 @@ void draw_widget(UiWidget_t *widget, Color color) {
              widget->y + widget->size / 2, color);
     DrawRectangle(slider_left, slider_top, slider_width, slider_height, color);
 
+    int text_width = MeasureText(widget->name, widget->size / 5);
+    DrawText(widget->name, widget->x - text_width / 2,
+             widget->y - widget->size / 2 - widget->size / 5, widget->size / 5,
+             WHITE);
+
     break;
   }
   case BUTTON: {
     DrawCircleLines(widget->x, widget->y, widget->size, WHITE);
 
     if (widget->dragged) {
-      DrawCircle(widget->x, widget->y, (widget->size / 10.0f) * 8.0f, LIGHTGRAY);
+      DrawCircle(widget->x, widget->y, (widget->size / 10.0f) * 8.0f,
+                 LIGHTGRAY);
     } else {
       // button is pressed
-      if (*(widget->value) != widget->min) {
+      if (widget->component_value) {
         DrawCircle(widget->x, widget->y, (widget->size / 10.0f) * 9.0f, WHITE);
       }
     }
+
+    int text_width = MeasureText(widget->name, widget->size);
+    DrawText(widget->name, widget->x - text_width / 2,
+             widget->y - widget->size * 2, widget->size, WHITE);
 
     break;
   }
@@ -98,66 +105,81 @@ void draw_widget(UiWidget_t *widget, Color color) {
 void widget_clicked(UiWidget_t *widget, int x, int y) {
   widget->dragged = true;
 
+  WidgetEvent_t event;
+  event.widget = widget;
+  event.event_type = ON_CLICK;
+
   switch (widget->type) {
   case SLIDER:
     break;
   case BUTTON: {
     break;
   }
+  }
+
+  if (widget->callback) {
+    widget->callback(widget->udata, &event);
   }
 }
 
 void widget_released(UiWidget_t *widget, int x, int y) {
   widget->dragged = false;
 
+  WidgetEvent_t event;
+  event.widget = widget;
+  event.event_type = ON_RELEASE;
+
   switch (widget->type) {
   case SLIDER:
     break;
   case BUTTON: {
-    if (*(widget->value) != widget->min)
-    {
-      *widget->value = widget->min;
-    }
-
-    else
-    {
-      *widget->value = widget->max;
-    }
+    widget->component_value = !widget->component_value;
     break;
   }
+  }
+
+  if (widget->callback) {
+    widget->callback(widget->udata, &event);
   }
 }
 
 void widget_dragged(UiWidget_t *widget, int last_x, int last_y, int x, int y) {
+  WidgetEvent_t event;
+  event.widget = widget;
+  event.event_type = ON_DRAG;
+  event.event_data.on_drag.start_percentage = widget->component_value;
+
   switch (widget->type) {
   case SLIDER: {
-    int delta = -(y - last_y);
-    double percentage_change = (double)delta / (double)widget->size;
-    double new_percentage = percentage_change + get_value_percentage(widget);
-    double new_value = percentage_to_value(widget, new_percentage);
+    widget->component_value =
+        (double)(widget->y - y + widget->size / 2.0) / (double)widget->size;
 
-    if (new_value > widget->max) {
-      new_value = widget->max;
+    if (widget->component_value < 0.0) {
+      widget->component_value = 0.0;
     }
 
-    else if (new_value < widget->min) {
-      new_value = widget->min;
+    else if (widget->component_value > 1.0) {
+      widget->component_value = 1.0;
     }
-
-    *widget->value = new_value;
     break;
   }
   case BUTTON:
     break;
+  }
+
+  event.event_data.on_drag.end_percentage = widget->component_value;
+
+  if (widget->callback) {
+    widget->callback(widget->udata, &event);
   }
 }
 
 bool point_inside_widget_clickbox(UiWidget_t *widget, int x, int y) {
   switch (widget->type) {
   case SLIDER: {
-    double percentage = get_value_percentage(widget);
     int slider_y =
-        -(int)((percentage - 0.5) * (double)widget->size) + widget->y;
+        -(int)((widget->component_value - 0.5) * (double)widget->size) +
+        widget->y;
     int slider_x = widget->x;
 
     int slider_width = widget->size / 5;
@@ -171,8 +193,7 @@ bool point_inside_widget_clickbox(UiWidget_t *widget, int x, int y) {
     return x > slider_left && x < slider_right && y > slider_top &&
            y < slider_bottom;
   }
-  case BUTTON:
-  {
+  case BUTTON: {
     int delta_x = x - widget->x;
     int delta_y = y - widget->y;
 

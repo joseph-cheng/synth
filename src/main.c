@@ -1,6 +1,6 @@
+#include "filter.h"
 #include "oscillator.h"
 #include "synth.h"
-#include "filter.h"
 #include "ui_manager.h"
 #include <math.h>
 #include <raylib.h>
@@ -8,6 +8,71 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct {
+  bool *value;
+} ButtonCallbackData_t;
+
+typedef struct {
+  double *value;
+  double min;
+  double max;
+} SliderCallbackData_t;
+
+void basic_value_callback(void *udata, WidgetEvent_t *event) {
+  switch (event->widget->type) {
+  case SLIDER: {
+    SliderCallbackData_t *data = udata;
+
+    switch (event->event_type) {
+    case ON_CLICK:
+      break;
+
+    case ON_RELEASE: {
+      break;
+    }
+
+    case ON_DRAG: {
+      double start_percentage = event->event_data.on_drag.start_percentage;
+      double end_percentage = event->event_data.on_drag.end_percentage;
+
+      switch (event->widget->scale) {
+      case LINEAR:
+        *(data->value) = end_percentage * (data->max - data->min) + data->min;
+        break;
+      case LOGARITHMIC:
+        *(data->value) =
+            pow(10, end_percentage * log10(data->max - data->min)) + data->min -
+            1.0;
+        break;
+      }
+
+      break;
+    }
+    }
+
+    break;
+  }
+  case BUTTON: {
+    ButtonCallbackData_t *data = udata;
+
+    switch (event->event_type) {
+    case ON_CLICK:
+      break;
+
+    case ON_RELEASE: {
+      *(data->value) = !*(data->value);
+      break;
+    }
+
+    case ON_DRAG:
+      break;
+    }
+
+    break;
+  }
+  }
+}
 
 int main(int argc, char **argv) {
   int err;
@@ -42,7 +107,7 @@ int main(int argc, char **argv) {
   Oscillator_t *oscillator = make_oscillator(SAW);
   Filter_t *filter = create_filter(LOWPASS, 1000.0f);
 
-  Synth_t *synth = create_synth(oscillator);
+  Synth_t *synth = create_synth(oscillator, 5, 100.0);
   add_filter_to_synth(synth, filter);
 
   struct SoundIoOutStream *outstream = soundio_outstream_create(device);
@@ -67,11 +132,26 @@ int main(int argc, char **argv) {
 
   InitWindow(800, 600, "synth");
   UiManager_t *ui_manager = create_ui_manager();
-  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &oscillator->params.freq, 30.0, 20000.0, 100, 400, 150));
-  add_widget(ui_manager, create_widget(SLIDER, LINEAR, &oscillator->params.amplitude, 0.0, 1.0, 300, 400, 150));
-  add_widget(ui_manager, create_widget(SLIDER, LOGARITHMIC, &filter->cutoff_freq, 30.0, 20000.0, 300, 100, 150));
+  SliderCallbackData_t freq_callback_data = {&oscillator->params.freq, 30.0,
+                                             20000.0};
+  SliderCallbackData_t amp_callback_data = {&oscillator->params.amplitude, 0.0,
+                                            1.0};
+  SliderCallbackData_t lpf_cutoff_callback_data = {&filter->cutoff_freq, 30.0,
+                                                   20000.0};
+  ButtonCallbackData_t active_callback_data = {&oscillator->params.active};
+  add_widget(ui_manager,
+             create_widget(SLIDER, LOGARITHMIC, 100, 400, 150, "Freq",
+                           basic_value_callback, &freq_callback_data));
+  add_widget(ui_manager,
+             create_widget(SLIDER, LINEAR, 300, 400, 150, "Amplitude",
+                           basic_value_callback, &amp_callback_data));
+  add_widget(ui_manager,
+             create_widget(SLIDER, LOGARITHMIC, 300, 100, 150, "LP Cutoff",
+                           basic_value_callback, &lpf_cutoff_callback_data));
 
-  add_widget(ui_manager, create_widget(BUTTON, LINEAR, &oscillator->params.active, 0.0, 1.0, 500, 400, 20));
+  add_widget(ui_manager,
+             create_widget(BUTTON, LINEAR, 500, 400, 20, "Active",
+                           basic_value_callback, &active_callback_data));
 
   while (!WindowShouldClose()) {
     BeginDrawing();

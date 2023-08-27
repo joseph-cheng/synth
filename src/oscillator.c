@@ -8,12 +8,14 @@ static const double PI = 3.14159265358979;
 Oscillator_t *make_oscillator(OscType_e type) {
   Oscillator_t *oscillator = malloc(sizeof(Oscillator_t));
   oscillator->type = type;
-  oscillator->params.freq = 440.0;
+  oscillator->params.freq = 2000.0;
   oscillator->params.amplitude = 0.2;
-  oscillator->params.active = 0;
+  oscillator->params.active = false;
   oscillator->offset = 0.0;
   oscillator->prev_sample = 0.0f;
   oscillator->prev_filtered_sample = 0.0f;
+  oscillator->left_pan = 0.5;
+  oscillator->right_pan = 0.5;
   return oscillator;
 }
 
