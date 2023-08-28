@@ -23,8 +23,7 @@ typedef struct WidgetEvent {
     } on_release;
 
     struct {
-      double start_percentage;
-      double end_percentage;
+      double percentage;
     } on_drag;
 
   } event_data;

@@ -7,20 +7,62 @@
 static const double PI = 3.14159265358979;
 
 Synth_t *create_synth(Oscillator_t *oscillator, size_t voices,
-                      double freq_spread) {
+                      double freq_spread, double pan_spread, double amp_spread) {
   Synth_t *synth = malloc(sizeof(Synth_t));
   synth->oscillators = malloc(sizeof(Oscillator_t) * voices);
+  synth->freq_spread = freq_spread;
+  synth->pan_spread = pan_spread;
+  synth->amp_spread = amp_spread;
+  synth->voices = voices;
+  synth->filters = create_array(10, sizeof(Filter_t *));
 
   for (int ii = 0; ii < voices; ii++) {
     synth->oscillators[ii] = *oscillator;
-    double voice_position = (ii - (voices / 2.0)) / (double)(voices / 2.0);
-    synth->oscillators[ii].params.freq = oscillator->params.freq + freq_spread * voice_position;
   }
 
-  synth->voices = voices;
+  update_oscillator_freq(synth, oscillator->params.freq);
+  update_oscillator_pan(synth, oscillator->params.pan);
+  update_oscillator_amp(synth, oscillator->params.amplitude);
 
-  synth->filters = create_array(10, sizeof(Filter_t *));
   return synth;
+}
+
+void update_oscillator_freq(Synth_t *synth, double new_freq)
+{
+  double spread = synth->freq_spread * new_freq;
+
+  for (int ii=0; ii < synth->voices; ii++)
+  {
+    double voice_position = (ii - (synth->voices / 2.0)) / (double)(synth->voices / 2.0);
+    synth->oscillators[ii].params.freq = new_freq + spread * voice_position;
+  }
+}
+
+void update_oscillator_amp(Synth_t *synth, double new_amp)
+{
+  for (int ii=0; ii < synth->voices; ii++)
+  {
+    synth->oscillators[ii].params.amplitude = new_amp;
+  }
+}
+
+void update_oscillator_pan(Synth_t *synth, double new_pan)
+{
+  double spread = synth->pan_spread;
+
+  for (int ii=0; ii < synth->voices; ii++)
+  {
+    double voice_position = (ii - (synth->voices / 2.0)) / (double)(synth->voices / 2.0);
+    synth->oscillators[ii].params.pan = new_pan + spread * voice_position;
+  }
+}
+
+void update_oscillator_active(Synth_t *synth, bool new_active)
+{
+  for (int ii=0; ii < synth->voices; ii++)
+  {
+    synth->oscillators[ii].params.active = new_active;
+  }
 }
 
 void destroy_synth(Synth_t *synth) {
@@ -66,8 +108,7 @@ void synth_write_callback(struct SoundIoOutStream *out_stream,
         Oscillator_t *oscillator = &oscillators[ii];
         double seconds = oscillator->offset + frame * seconds_per_frame;
         float sample = 0.0f;
-        // TODO: fix
-        if (oscillator->params.active || true) {
+        if (oscillator->params.active) {
           switch (oscillator->type) {
           case SIN:
             sample = sine_gen(oscillator, seconds);
@@ -96,8 +137,10 @@ void synth_write_callback(struct SoundIoOutStream *out_stream,
               oscillator->prev_sample, float_sample_rate);
         }
 
-        left_channel_sample += filtered_sample * oscillator->left_pan;
-        right_channel_sample += filtered_sample * oscillator->right_pan;
+        double right_pan = (oscillator->params.pan + 1.0) / 2.0;
+        double left_pan = 1.0 - right_pan;
+        left_channel_sample += filtered_sample * left_pan;
+        right_channel_sample += filtered_sample * right_pan;
 
         oscillator->prev_sample = sample;
         oscillator->prev_filtered_sample = filtered_sample;

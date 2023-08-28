@@ -11,6 +11,7 @@ typedef enum OscType {
 typedef struct OscParams {
   double freq;
   double amplitude;
+  double pan;
   bool active;
 } OscParams_t;
 
@@ -20,8 +21,6 @@ typedef struct Oscillator {
   double offset;
   float prev_sample;
   float prev_filtered_sample;
-  double left_pan;
-  double right_pan;
 } Oscillator_t;
 
 Oscillator_t *make_oscillator(OscType_e type);
